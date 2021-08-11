@@ -23,6 +23,9 @@ args = parser.parse_args()
 def wait():
     time.sleep(args.wait)
 
+def wrapQuotes(string):
+    return f'"{string}"'
+
 def increaseCount(type):
     if type == 'p':
         global cacheReads
@@ -79,63 +82,63 @@ def getMostPopularEntry(animeography, mangaography, cache):
     return mpeID, mpeURL, isAnime
 
 def write(output, id, name, url, favorites, mostPopularEntry, mpeURL, mpeMembers, mpeType, mpeSource):
-    output.write(f'{id},{name},{url},{favorites},{mostPopularEntry},{mpeURL},{mpeMembers},{mpeType},{mpeSource}\n')
+    output.write(f'{id},{wrapQuotes(name)},{url},{favorites},{wrapQuotes(mostPopularEntry)},{mpeURL},{mpeMembers},{mpeType},{mpeSource}\n')
 
 def crawl(lower, upper):
     if args.append:
-        output = open(args.output, 'a', encoding='utf-8')
+        outputType = 'a'
     else:
-        output = open(args.output, 'w', encoding='utf-8')
-        output.write('id,name,url,favorites,mostPopularEntry,mpeURL,mpeMembers,mpeType,mpeSource\n')
+        outputType = 'w'
 
     if args.persist:
         cache = shelve.open('MALCache')
     else:
         cache = {}
 
-    for i in range(lower, upper + 1):
-        if i % ((upper + 1 - lower) // 10) == 0:
-            print(f'{round((i - lower) / (upper + 1 - lower) * 100)}% done.')
-        try:
-            wait()
-            char = jikan.character(i)
-            increaseCount('c')
-            id, name, url, favorites = char['mal_id'], char['name'], char['url'], char['member_favorites']
-            animeography, mangaography = char['animeography'], char['mangaography']
+    with open(args.output, outputType, encoding='utf-8-sig') as output:
+        if outputType == 'w': output.write('id,name,url,favorites,mostPopularEntry,mpeURL,mpeMembers,mpeType,mpeSource\n')
 
-            mpeID, mpeURL, isAnime = getMostPopularEntry(animeography, mangaography, cache)
-            
-            if mpeID == None or mpeURL == None:
-                mostPopularEntry, mpeURL, mpeMembers, mpeType, mpeSource = '', '', '', '', ''
-            elif mpeURL in cache and len(cache[mpeURL]) > 1:
-                mpe = cache[mpeURL]
-                increaseCount('p')
-                mostPopularEntry, mpeMembers, mpeType, mpeSource = mpe['title'], mpe['members'], mpe['type'], mpe['source']
-            else:
+        for i in range(lower, upper + 1):
+            if i % ((upper + 1 - lower) // 10) == 0:
+                print(f'{round((i - lower) / (upper + 1 - lower) * 100)}% done.')
+            try:
                 wait()
-                if isAnime:
-                    mpe = jikan.anime(mpeID)
-                    increaseCount('a')
-                    mpeSource = mpe['source']
+                char = jikan.character(i)
+                increaseCount('c')
+                id, name, url, favorites = char['mal_id'], char['name'], char['url'], char['member_favorites']
+                animeography, mangaography = char['animeography'], char['mangaography']
+
+                mpeID, mpeURL, isAnime = getMostPopularEntry(animeography, mangaography, cache)
+                
+                if mpeID == None or mpeURL == None:
+                    mostPopularEntry, mpeURL, mpeMembers, mpeType, mpeSource = '', '', '', '', ''
+                elif mpeURL in cache and len(cache[mpeURL]) > 1:
+                    mpe = cache[mpeURL]
+                    increaseCount('p')
+                    mostPopularEntry, mpeMembers, mpeType, mpeSource = mpe['title'], mpe['members'], mpe['type'], mpe['source']
                 else:
-                    mpe = jikan.manga(mpeID)
-                    increaseCount('m')
-                    mpeSource = ''
+                    wait()
+                    if isAnime:
+                        mpe = jikan.anime(mpeID)
+                        increaseCount('a')
+                        mpeSource = mpe['source']
+                    else:
+                        mpe = jikan.manga(mpeID)
+                        increaseCount('m')
+                        mpeSource = ''
 
-                mostPopularEntry, mpeMembers, mpeType = mpe['title'], mpe['members'], mpe['type']
-                cache[mpeURL] = {
-                    'title': mostPopularEntry,
-                    'members': mpeMembers,
-                    'type': mpeType,
-                    'source': mpeSource,
-                }
+                    mostPopularEntry, mpeMembers, mpeType = mpe['title'], mpe['members'], mpe['type']
+                    cache[mpeURL] = {
+                        'title': mostPopularEntry,
+                        'members': mpeMembers,
+                        'type': mpeType,
+                        'source': mpeSource,
+                    }
 
-            write(output, id, name, url, favorites, mostPopularEntry, mpeURL, mpeMembers, mpeType, mpeSource)
-        except exceptions.APIException:
-            continue
-
+                write(output, id, name, url, favorites, mostPopularEntry, mpeURL, mpeMembers, mpeType, mpeSource)
+            except exceptions.APIException:
+                continue
     cache.close()
-    output.close()
 
 def run():
     if args.complete:
