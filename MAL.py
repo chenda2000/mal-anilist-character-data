@@ -138,6 +138,11 @@ def crawl(lower, upper):
                 write(output, id, name, url, favorites, mostPopularEntry, mpeURL, mpeMembers, mpeType, mpeSource)
             except exceptions.APIException:
                 continue
+            except KeyboardInterrupt:
+                break
+            except Exception as e:
+                print(e)
+                break
     cache.close()
 
 def run():
