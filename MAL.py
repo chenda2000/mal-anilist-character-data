@@ -99,7 +99,7 @@ def crawl(lower, upper):
         if outputType == 'w': output.write('id,name,url,favorites,mostPopularEntry,mpeURL,mpeMembers,mpeType,mpeSource\n')
 
         for i in range(lower, upper + 1):
-            if i % ((upper + 1 - lower) // 10) == 0:
+            if upper + 1 - lower >= 10 and i % ((upper + 1 - lower) // 10) == 0:
                 print(f'{round((i - lower) / (upper + 1 - lower) * 100)}% done.')
             try:
                 wait()
@@ -136,14 +136,17 @@ def crawl(lower, upper):
                     }
 
                 write(output, id, name, url, favorites, mostPopularEntry, mpeURL, mpeMembers, mpeType, mpeSource)
-            except exceptions.APIException:
-                continue
+            except exceptions.APIException as e:
+                if e.status_code == 404: continue
+                else: 
+                    print(e)
+                    break
             except KeyboardInterrupt:
                 break
             except Exception as e:
                 print(e)
                 break
-    cache.close()
+    if args.persist: cache.close()
 
 def run():
     if args.complete:
